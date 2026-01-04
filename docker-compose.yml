@@ -1,5 +1,9 @@
 version: "3.9"
 
+networks:
+  vpn_net:
+    external: true
+
 services:
   # -------------------------
   # Proton VPN (WireGuard client)
@@ -17,10 +21,11 @@ services:
     environment:
       - VPN_SERVICE_PROVIDER=custom
       - VPN_TYPE=wireguard
-      - WIREGUARD_PRIVATE_KEY=ignored   # taken from config
-      - WIREGUARD_ADDRESSES=ignored
       - TZ=${TZ}
-    network_mode: bridge
+      - FIREWALL_OUTBOUND_SUBNETS=192.168.1.0/24
+      - FIREWALL_INPUT_PORTS=53
+    networks:
+      - vpn_net
     ports:
       - "53:53/udp"
       - "53:53/tcp"
@@ -36,7 +41,8 @@ services:
     restart: unless-stopped
     depends_on:
       - protonvpn
-    network_mode: service:protonvpn
+    networks:
+      - vpn_net
     volumes:
       - ${BASE_DIR}/adguard/work:/opt/adguardhome/work
       - ${BASE_DIR}/adguard/conf:/opt/adguardhome/conf
