@@ -2,42 +2,46 @@ version: "3.9"
 
 services:
   # -------------------------
-  # AdGuard Home (DNS Filter)
+  # Proton VPN (WireGuard client)
+  # -------------------------
+  protonvpn:
+    image: ghcr.io/qdm12/gluetun:latest
+    container_name: protonvpn
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ${BASE_DIR}/proton:/gluetun/wireguard
+    environment:
+      - VPN_SERVICE_PROVIDER=custom
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=ignored   # taken from config
+      - WIREGUARD_ADDRESSES=ignored
+      - TZ=${TZ}
+    network_mode: bridge
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+
+  # -------------------------
+  # AdGuard Home (DNS)
   # -------------------------
   adguard:
     image: adguard/adguardhome:latest
     container_name: adguardhome
     restart: unless-stopped
-    network_mode: host
+    depends_on:
+      - protonvpn
+    network_mode: service:protonvpn
     volumes:
       - ${BASE_DIR}/adguard/work:/opt/adguardhome/work
       - ${BASE_DIR}/adguard/conf:/opt/adguardhome/conf
     environment:
       - TZ=${TZ}
-
-  # -------------------------
-  # WireGuard VPN (wg-easy)
-  # -------------------------
-  wireguard:
-    image: weejewel/wg-easy
-    container_name: wg-easy
-    restart: unless-stopped
-    environment:
-      - WG_HOST=${WG_HOST}
-      - PASSWORD=${WG_PASSWORD}
-      - WG_DEFAULT_DNS=192.168.1.50   # Pi IP (change if needed)
-      - WG_ALLOWED_IPS=0.0.0.0/0
-      - TZ=${TZ}
-    volumes:
-      - ${BASE_DIR}/wireguard/config:/etc/wireguard
-    ports:
-      - "51820:51820/udp"
-      - "51821:51821/tcp"
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
 
   # -------------------------
   # Portainer (Docker UI)
@@ -47,7 +51,6 @@ services:
     container_name: portainer
     restart: unless-stopped
     ports:
-      - "9000:9000"
       - "9443:9443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

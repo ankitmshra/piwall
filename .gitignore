@@ -1,5 +1,2 @@
+proton/
 .env
-**/work/*
-**/conf/*
-**/config/*
-**/data/*
